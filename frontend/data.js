@@ -172,15 +172,20 @@ function parseRealForecast(raw, features) {
     const [lng, lat] = featureCentroid(f);
     muni[code] = { code, name: f.properties.name, center: [lat, lng], risk: [0, 0, 0, 0, 0] };
   }
-  // Preenche probabilidades reais por dia
+  // Preenche probabilidades reais por dia; rastreia quais municípios receberam previsão
+  const predicted = new Set();
   dias.forEach((dia, di) => {
     for (const rec of (raw.municipios[dia] || [])) {
       const f = byName[norm(rec.nome)];
       if (!f) continue;
       const code = String(f.properties.id);
-      if (muni[code]) muni[code].risk[di] = Number(rec.prob);
+      if (muni[code]) { muni[code].risk[di] = Number(rec.prob); predicted.add(code); }
     }
   });
+  // Marca municípios sem previsão (ex: 100% Mata Atlântica) como fora do escopo
+  for (const code of Object.keys(muni)) {
+    if (!predicted.has(code)) muni[code].outOfScope = true;
+  }
 
   // Células por índice de dia (array de 5 listas)
   const celulas = dias.map(dia => raw.celulas[dia] || []);

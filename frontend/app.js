@@ -101,10 +101,13 @@
   function muniStyle(f) {
     const code = String(f.properties.id);
     const m = state.forecast.municipios[code];
-    const r = m ? m.risk[state.day] : 0;
     if (state.drilling) {
       return { fillOpacity: 0, color: 'rgba(120,130,140,.12)', weight: 0.4 };
     }
+    if (m && m.outOfScope) {
+      return { fillColor: '#6b7c85', fillOpacity: 0.18, color: 'rgba(80,95,105,.45)', weight: 0.6, dashArray: '4,4' };
+    }
+    const r = m ? m.risk[state.day] : 0;
     const dimmed = state.selected && state.selected !== code;
     return {
       fillColor: D.riskColor(r),
@@ -122,6 +125,15 @@
     if (state.drilling) return;
     if (state.selected && state.selected !== code) return;
     const m = state.forecast.municipios[code];
+    if (m.outOfScope) {
+      layer.setStyle({ weight: 1.2, color: 'rgba(80,95,105,.7)', fillOpacity: 0.28 });
+      layer.bringToFront();
+      layer.bindTooltip(
+        `<div class="tn">${m.name}</div><div class="tr" style="color:var(--txt-dim)">Mata Atlântica · fora do escopo de previsão</div>`,
+        { className: 'muni-tip', sticky: true, direction: 'top', offset: [0, -4] }
+      ).openTooltip();
+      return;
+    }
     const r = m.risk[state.day];
     layer.setStyle({ weight: 1.8, color: '#fff', fillOpacity: 0.62 });
     layer.bringToFront();
@@ -141,10 +153,11 @@
 
   /* --------------------- DRILL-IN: células finas -------------------------- */
   function selectMuni(code, opts = {}) {
+    const m = state.forecast.municipios[code];
+    if (m && m.outOfScope) return;
     state.selected = code;
     state.drilling = true;
     state.rankTab = 'e2';
-    const m = state.forecast.municipios[code];
     const feature = state.layerByCode[code].feature;
 
     restyleMuni();
@@ -293,8 +306,7 @@
 
   /* --------------------------- DAY BAR ------------------------------------ */
   function dayMeanColor(di) {
-    // cor-resumo do dia = média do risco estadual
-    const ms = Object.values(state.forecast.municipios);
+    const ms = Object.values(state.forecast.municipios).filter(m => !m.outOfScope);
     let s = 0; for (const m of ms) s += m.risk[di];
     return D.riskColor(s / ms.length);
   }
@@ -337,7 +349,7 @@
   /* --------------------------- RANKING ------------------------------------ */
   function sortedMunis() {
     return Object.values(state.forecast.municipios)
-      .slice()
+      .filter(m => !m.outOfScope)
       .sort((a, b) => b.risk[state.day] - a.risk[state.day]);
   }
   function sparkline(risk) {
