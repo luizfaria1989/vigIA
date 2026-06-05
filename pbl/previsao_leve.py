@@ -9,7 +9,7 @@ Entrada:
   dados/mapeamento_grade.csv
   dados/lookup_municipio.csv      (≤ 3 k linhas)
   dados/lookup_grade.csv          (≤ 36 k linhas)
-  Open-Meteo API (244 chamadas, ~6 min)
+  Open-Meteo API (244 chamadas paralelas, ~1 min)
 
 Saída:
   resultados/previsao_municipio_<hoje>.csv
@@ -17,6 +17,7 @@ Saída:
 """
 
 import os, time, requests, warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 import numpy as np
 import pandas as pd
@@ -67,49 +68,38 @@ print(f"  Modelo: {arte1['nome']} | Municípios: {len(mapa)} | Lookup: {len(look
 print("[E1-2] Buscando dados climáticos (Open-Meteo)...")
 
 def buscar_clima(nome, lat, lon, retries=4):
+    # Uma única chamada com past_days=30 substitui archive + forecast
     for tentativa in range(retries):
         try:
-            r_arc = requests.get(
-                "https://archive-api.open-meteo.com/v1/archive",
-                params={
-                    "latitude": round(lat, 4), "longitude": round(lon, 4),
-                    "start_date": str(hoje - timedelta(days=30)),
-                    "end_date":   str(hoje - timedelta(days=1)),
-                    "daily": "precipitation_sum",
-                    "timezone": "America/Sao_Paulo",
-                },
-                timeout=20,
-            )
-            if r_arc.status_code == 429:
-                espera = int(r_arc.headers.get("Retry-After", 60))
-                print(f"\n    Rate limit — aguardando {espera}s...", end=" ", flush=True)
-                time.sleep(espera)
-                continue
-            r_arc.raise_for_status()
-
-            r_frc = requests.get(
+            r = requests.get(
                 "https://api.open-meteo.com/v1/forecast",
                 params={
                     "latitude": round(lat, 4), "longitude": round(lon, 4),
                     "daily": "precipitation_sum",
+                    "past_days": 30,
                     "forecast_days": 6,
                     "timezone": "America/Sao_Paulo",
                 },
                 timeout=20,
             )
-            r_frc.raise_for_status()
+            if r.status_code == 429:
+                espera = int(r.headers.get("Retry-After", 60))
+                time.sleep(espera)
+                continue
+            r.raise_for_status()
 
-            prec_hist = r_arc.json()["daily"]["precipitation_sum"]
+            data      = r.json()["daily"]
+            prec_all  = data["precipitation_sum"]  # 30 passado + 1 hoje + 5 previsão = 36
+            prec_hist = prec_all[:30]               # últimos 30 dias
+            prec_prev = prec_all[31:36]             # amanhã → hoje+5 (pula hoje no índice 30)
+            datas_prev = data["time"][31:36]
+
             dias_secos = 0
             for p in prec_hist:
                 if p is None or pd.isna(p) or p < LIMIAR_CHUVA:
                     dias_secos += 1
                 else:
                     dias_secos = 0
-
-            frc_data  = r_frc.json()["daily"]
-            prec_prev = frc_data["precipitation_sum"][1:6]
-            datas_prev = frc_data["time"][1:6]
 
             registros = []
             contador = dias_secos
@@ -127,21 +117,29 @@ def buscar_clima(nome, lat, lon, retries=4):
             return registros
         except Exception:
             if tentativa < retries - 1:
-                time.sleep(10 * (2 ** tentativa))
+                time.sleep(5 * (2 ** tentativa))
             else:
                 return None
 
 todos, erros = [], []
-for i, row in mapa.iterrows():
-    print(f"  [{i+1:3d}/{len(mapa)}] {row['Municipio']:<35}", end=" ", flush=True)
-    resultado = buscar_clima(row["Municipio"], row["Latitude"], row["Longitude"])
-    if resultado:
-        todos.extend(resultado)
-        print(f"✓ seco={resultado[0]['DiaSemChuva']}d")
-    else:
-        erros.append(row["Municipio"])
-        print("✗ ERRO")
-    time.sleep(1.2)
+
+def _worker(args):
+    _, row = args
+    return row["Municipio"], buscar_clima(row["Municipio"], row["Latitude"], row["Longitude"])
+
+concluidos = 0
+with ThreadPoolExecutor(max_workers=8) as executor:
+    futures = {executor.submit(_worker, item): item[1]["Municipio"]
+               for item in mapa.iterrows()}
+    for future in as_completed(futures):
+        nome, resultado = future.result()
+        concluidos += 1
+        if resultado:
+            todos.extend(resultado)
+            print(f"  [{concluidos:3d}/244] {nome:<35} ✓ seco={resultado[0]['DiaSemChuva']}d", flush=True)
+        else:
+            erros.append(nome)
+            print(f"  [{concluidos:3d}/244] {nome:<35} ✗ ERRO", flush=True)
 
 if erros:
     print(f"\n  Municípios com erro ({len(erros)}): {', '.join(erros)}")
