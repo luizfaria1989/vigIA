@@ -154,15 +154,15 @@ function parseRealForecast(raw, features) {
   for (const f of features) byName[norm(f.properties.name)] = f;
 
   const dias = raw.dias;
-  const days = dias.map((iso, i) => {
+  const _nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const _pad = n => String(n).padStart(2, '0');
+  const _isoToday = `${_nowBR.getFullYear()}-${_pad(_nowBR.getMonth()+1)}-${_pad(_nowBR.getDate())}`;
+  const _tmrw = new Date(_nowBR); _tmrw.setDate(_nowBR.getDate() + 1);
+  const _isoTmrw = `${_tmrw.getFullYear()}-${_pad(_tmrw.getMonth()+1)}-${_pad(_tmrw.getDate())}`;
+  const days = dias.map(iso => {
     const d = new Date(iso + 'T12:00:00-03:00');
-    return {
-      iso,
-      weekday: WEEKDAYS[d.getDay()],
-      day: d.getDate(),
-      month: d.getMonth(),
-      label: i === 0 ? 'Hoje' : (i === 1 ? 'Amanhã' : null),
-    };
+    const label = iso === _isoToday ? 'Hoje' : iso === _isoTmrw ? 'Amanhã' : null;
+    return { iso, weekday: WEEKDAYS[d.getDay()], day: d.getDate(), month: d.getMonth(), label };
   });
 
   // Inicializa todos os municípios do GeoJSON
