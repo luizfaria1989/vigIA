@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>vigIA — Antecipação de queimadas · Goiás</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================ TOP BAR ============================ -->
+  <header class="topbar">
+    <div class="topbar-main">
+      <div class="brand">
+        <span class="glyph"></span>
+        <div>
+          <div class="name">vig<b>IA</b></div>
+          <div class="tag">Antecipação de queimadas · Goiás</div>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="stamp">
+          <div class="k">Boletim · atualizado</div>
+          <div class="v"><span id="stamp-val">—</span></div>
+          <div class="v" style="font-size:10.5px"><span id="stamp-src" class="live">—</span></div>
+        </div>
+        <button class="btn-about" id="btn-about">
+          <span class="q">?</span> Sobre o modelo
+        </button>
+      </div>
+    </div>
+
+    <nav class="daybar" id="daybar" aria-label="Próximos 5 dias">
+      <span class="daybar-lead">QUANDO →</span>
+    </nav>
+  </header>
+
+  <!-- ============================== MAIN ============================== -->
+  <div class="main">
+
+    <div class="map-wrap">
+      <div id="map"></div>
+
+      <!-- estado da visualização (drill-in) -->
+      <div class="map-overlay viewstate" id="viewstate" style="display:none"></div>
+
+      <!-- legenda -->
+      <div class="map-overlay legend">
+        <div class="lt">Probabilidade de fogo · próx. 5 dias</div>
+        <div class="bar"></div>
+        <div class="ticks"><span>0%</span><span>50%</span><span>100%</span></div>
+        <div class="lbls"><span>calmo</span><span>atenção</span><span>alto risco</span></div>
+        <div class="legend-e2" id="legend-e2" style="display:none">
+          <div class="le2-divider"></div>
+          <div class="le2-k">Mínimo de risco · zonas</div>
+          <div class="le2-row">
+            <input type="range" id="prob-slider" min="0" max="90" value="0" step="5">
+            <span class="le2-val" id="prob-val">≥ 0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- dica de escala -->
+      <div class="map-overlay scalehint">
+        Clique num município no mapa ou no ranking → <b>onde dentro dele</b> está acendendo.
+      </div>
+
+      <!-- loader -->
+      <div class="loader" id="loader">
+        <div>
+          <div class="spin"></div>
+          <div class="lmsg" id="loader-msg">Iniciando…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================== RANKING =========================== -->
+    <aside class="rank">
+      <div class="rank-head">
+        <div class="rh-k" id="rh-k">Municípios mais críticos</div>
+        <div class="rh-t">Ranking do dia <span class="rh-day" id="rh-day">—</span></div>
+        <div class="rh-sub" id="rh-sub">qual região concentrar atenção · ordenado por probabilidade</div>
+        <div class="rank-tabs">
+          <button class="rtab is-active" id="tab-e1">Municípios</button>
+          <button class="rtab" id="tab-e2" disabled>Zonas de risco</button>
+        </div>
+      </div>
+      <div class="rank-list" id="rank-list"></div>
+      <div class="rank-foot" id="rank-foot">
+        <button class="btn-expand" id="btn-expand">+ ver todos</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ============================ ABOUT MODAL ============================ -->
+<div class="modal-scrim" id="modal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2>Sobre o vigIA</h2>
+        <div class="sub">Um instrumento de antecipação — não de detecção</div>
+      </div>
+      <button class="modal-close" id="modal-close">×</button>
+    </div>
+    <div class="modal-body">
+      <p>O vigIA responde, todo dia, a uma pergunta só: <b>nos próximos 5 dias, onde em Goiás
+      é mais provável pegar fogo — e onde exatamente?</b> O valor está no <b>antes</b>: tempo
+      suficiente para deslocar uma brigada, emitir um alerta ou priorizar fiscalização.</p>
+
+      <h3>Como ler o painel</h3>
+      <div class="howread">
+        <div class="card"><div class="ck">Ranking → qual região</div><div class="cv">Os municípios com maior probabilidade no dia escolhido.</div></div>
+        <div class="card"><div class="ck">Mapa → onde dentro</div><div class="cv">Clique num município e veja as zonas internas com risco individual.</div></div>
+        <div class="card"><div class="ck">5 dias → quando</div><div class="cv">Troque o dia no topo: o mapa esquenta ou esfria, o ranking reordena.</div></div>
+        <div class="card"><div class="ck">Escala de fogo → quanto</div><div class="cv">Uma só escala — verde, âmbar, vermelho — no mapa, no ranking e na legenda.</div></div>
+      </div>
+
+      <h3>Transparência sobre a incerteza</h3>
+      <p>O risco é uma <b>probabilidade — não uma certeza</b>. O modelo tende a errar mais na
+      <b>estação chuvosa</b>, quando o fogo é menos previsível. Olhe sempre a data de geração:
+      este boletim é um instantâneo diário, atualizado uma vez por dia.</p>
+
+      <h3>O que o vigIA não é</h3>
+      <div class="notbox">
+        <div class="ni"><span class="x">—</span><span><b>Não é tempo real.</b> É previsão de 5 dias, atualizada uma vez por dia.</span></div>
+        <div class="ni"><span class="x">—</span><span><b>Não é detecção.</b> Isso o satélite já faz; o vigIA aponta o que <i>ainda vai</i> queimar.</span></div>
+        <div class="ni"><span class="x">—</span><span><b>Não é um sistema com contas ou histórico.</b> É uma janela para o risco da semana.</span></div>
+      </div>
+
+      <h3>Dados e fontes</h3>
+      <p class="src">
+        Focos de incêndio: <b>BDqueimadas / INPE</b> (histórico 2015–2025).<br>
+        Dados climáticos: <b>Open-Meteo</b> (temperatura, precipitação, vento, umidade).<br>
+        Malha municipal: <b>IBGE</b> (via geodata-br, domínio público CC0).<br>
+        Imagens de satélite: <b>Esri World Imagery</b> (Maxar, Earthstar Geographics).
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
