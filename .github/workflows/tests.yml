@@ -1,0 +1,36 @@
+name: Testes da Suite vigIA
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Instalar pytest
+        run: pip install pytest
+
+      - name: Rodar testes
+        run: python -m pytest tests/ -v
+
+      - name: Upload resultados dos testes (em caso de falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: .pytest_cache/
