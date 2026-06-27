@@ -1,0 +1,2 @@
+executado_em,gerado_em,idade_h,cobertura_pct,prob_media,pct_alto,probs_invalidas,hit_rate_top_n,status
+2026-06-19T22:07:25+00:00,2026-06-10T22:01-03:00,213.11,100.0,0.4314,14.6,0,,FALHA

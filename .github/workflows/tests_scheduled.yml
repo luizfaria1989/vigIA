@@ -1,0 +1,40 @@
+name: Testes Agendados + Monitoramento vigIA
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # 07:00 UTC (04:00 BRT)
+  workflow_dispatch:
+
+jobs:
+  test-and-monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Instalar dependências
+        run: |
+          pip install pytest
+          pip install -r pbl/requirements.txt
+
+      - name: Rodar testes (com checagem de frescor habilitada)
+        run: VIGIA_CHECK_FRESHNESS=1 python -m pytest tests/ -v
+
+      - name: Rodar monitoramento de produção
+        run: python tests/monitoring/monitor_forecast.py --strict --history tests/data/metrics_history.csv --out tests/data/metrics.json
+
+      - name: Commit e push das métricas atualizadas
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/data/metrics_history.csv tests/data/metrics.json
+          git diff --cached --quiet && echo "Sem mudanças nas métricas." || \
+            git commit -m "chore: atualiza metricas de monitoramento $(date -u +%Y-%m-%d)" && git push

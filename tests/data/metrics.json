@@ -1,0 +1,104 @@
+{
+  "gerado_em": "2026-06-10T22:01-03:00",
+  "idade_h": 212.91,
+  "n_dias": 5,
+  "n_municipios_distintos": 244,
+  "cobertura_pct": 100.0,
+  "n_celulas_total": 14635,
+  "prob_media": 0.4314,
+  "prob_min": 0.0002,
+  "prob_max": 0.9813,
+  "prob_variancia": 0.057265,
+  "pct_baixo": 48.3,
+  "pct_medio": 37.1,
+  "pct_alto": 14.6,
+  "probs_invalidas": 0,
+  "riscos_invalidos": 0,
+  "municipios_fora_escopo": [],
+  "tudo_zero": false,
+  "top_n": [
+    [
+      "NIQUELÂNDIA",
+      0.9793
+    ],
+    [
+      "CAVALCANTE",
+      0.9414
+    ],
+    [
+      "MINEIROS",
+      0.934
+    ],
+    [
+      "BARRO ALTO",
+      0.9229
+    ],
+    [
+      "CAIAPÔNIA",
+      0.9115
+    ],
+    [
+      "RIO VERDE",
+      0.9048
+    ],
+    [
+      "JATAÍ",
+      0.9009
+    ],
+    [
+      "LUZIÂNIA",
+      0.8976
+    ],
+    [
+      "CRISTALINA",
+      0.8944
+    ],
+    [
+      "PORANGATU",
+      0.8818
+    ]
+  ],
+  "status_geral": "FALHA",
+  "checagens": [
+    {
+      "nome": "Frescor do boletim",
+      "status": "FALHA",
+      "detalhe": "212.9h (limite 24h) — pipeline pode estar parado"
+    },
+    {
+      "nome": "Janela de previsão",
+      "status": "OK",
+      "detalhe": "5 dias"
+    },
+    {
+      "nome": "Cobertura de municípios",
+      "status": "OK",
+      "detalhe": "100.0% (244/244)"
+    },
+    {
+      "nome": "Probabilidades válidas",
+      "status": "OK",
+      "detalhe": "0 fora de [0,1]"
+    },
+    {
+      "nome": "Rótulos de risco válidos",
+      "status": "OK",
+      "detalhe": "0 inválidos"
+    },
+    {
+      "nome": "Escopo geográfico",
+      "status": "OK",
+      "detalhe": "sem intrusos"
+    },
+    {
+      "nome": "Saída do modelo",
+      "status": "OK",
+      "detalhe": "média=0.4314 var=0.057265"
+    },
+    {
+      "nome": "Distribuição de risco",
+      "status": "OK",
+      "detalhe": "B=48.3% M=37.1% A=14.6%"
+    }
+  ]
+}
